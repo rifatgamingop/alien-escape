@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alien Escape</title>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #222222;
+    }
+    .container {
+        text-align: center;
+        margin-top: 50px;
+    }
+    .game-container {
+        position: relative;
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+        background-color: #111111;
+        border: 2px solid #333;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .score {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        font-size: 24px;
+        color: white;
+        text-shadow: 1px 1px 1px #333;
+    }
+    .gameover {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        display: none;
+    }
+    .gameover h2 {
+        margin-top: 0;
+        color: #333;
+    }
+    .buttons {
+        margin-top: 20px;
+    }
+    .btn {
+        padding: 10px 20px;
+        font-size: 18px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+        margin-right: 10px;
+    }
+    canvas {
+        display: block;
+        margin: 0 auto;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Alien Escape</h1>
+    <div id="startMenu">
+        <button class="btn" onclick="startGame()">Start Game</button>
+        <div id="shareButtons" style="display: none;">
+            <button class="btn" onclick="shareOnTwitter()">Share on Twitter</button>
+            <button class="btn" onclick="shareOnFacebook()">Share on Facebook</button>
+        </div>
+    </div>
+    <div class="game-container" id="gameContainer" style="display: none;">
+        <span class="score">Score: 0</span>
+        <canvas id="canvas" width="400" height="600"></canvas>
+        <div class="gameover" id="gameover">
+            <h2>Game Over!</h2>
+            <div class="buttons">
+                <button class="btn" onclick="restartGame()">Restart</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const backgroundImg = new Image();
+    backgroundImg.src = 'https://getwallpapers.com/wallpaper/full/9/2/d/554055.jpg'; /* Your background image */
+
+    const alienImg = new Image();
+    alienImg.src = 'https://www.pngall.com/wp-content/uploads/2016/06/Alien-PNG-Image.png'; /* Your alien image */
+
+    const alien = {
+        x: 50,
+        y: canvas.height / 2,
+        width: 60,
+        height: 60,
+        velocity: 0,
+        gravity: 0.8, // Increased gravity
+        jumpStrength: 14, // Increased jump strength
+        draw: function() {
+            ctx.drawImage(alienImg, this.x, this.y, this.width, this.height);
+        },
+        jump: function() {
+            this.velocity = -this.jumpStrength;
+        },
+        update: function() {
+            this.velocity += this.gravity;
+            this.y += this.velocity;
+        }
+    };
+
+    const attackers = {
+        gap: 160, // Decreased gap
+        width: 40,
+        speed: 3, // Increased speed
+        attackersArray: [],
+        draw: function() {
+            this.attackersArray.forEach(attacker => {
+                ctx.fillStyle = '#FF6347'; /* Attacker color */
+                ctx.fillRect(attacker.x, attacker.y, this.width, this.width);
+            });
+        },
+        update: function() {
+            if (frames % 80 === 0) { // Increased frequency
+                const y = Math.floor(Math.random() * (canvas.height - this.gap - 100)) + 50;
+                this.attackersArray.push({
+                    x: canvas.width,
+                    y: y
+                });
+            }
+
+            this.attackersArray.forEach(attacker => {
+                attacker.x -= this.speed;
+            });
+
+            if (this.attackersArray.length > 0 && this.attackersArray[0].x + this.width < 0) {
+                this.attackersArray.shift();
+            }
+        }
+    };
+
+    let frames = 0;
+    let score = 0;
+    let gameOver = false;
+    let gameStarted = false;
+    let animationId;
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+        alien.draw();
+        attackers.draw();
+        ctx.fillStyle = '#fff';
+        ctx.font = '24px Segoe UI';
+        ctx.fillText(`Score: ${score}`, 20, 40);
+    }
+
+    function update() {
+        if (!gameStarted) return;
+        alien.update();
+        attackers.update();
+
+        if (alien.y + alien.height > canvas.height || alien.y < 0) {
+            endGame();
+        }
+
+        attackers.attackersArray.forEach(attacker => {
+            if (alien.x + alien.width > attacker.x && alien.x < attacker.x + attackers.width &&
+                (alien.y < attacker.y + attackers.width && alien.y + alien.height > attacker.y)) {
+                endGame();
+            }
+        });
+
+        if (attackers.attackersArray[0].x + attackers.width < alien.x) {
+            score++;
+            attackers.attackersArray.shift();
+        }
+
+        frames++;
+    }
+
+    function endGame() {
+        gameOver = true;
+        document.getElementById('gameover').style.display = 'block';
+        document.getElementById('shareButtons').style.display = 'block';
+    }
+
+    function restartGame() {
+        cancelAnimationFrame(animationId);
+        document.getElementById('gameover').style.display = 'none';
+        document.getElementById('shareButtons').style.display = 'none';
+        score = 0;
+        frames = 0;
+        alien.y = canvas.height / 2;
+        attackers.attackersArray = [];
+        gameOver = false;
+        gameStarted = false;
+        startGame();
+    }
+
+    function loop() {
+        if (!gameOver) {
+            update();
+            draw();
+            animationId = requestAnimationFrame(loop);
+        }
+    }
+
+    function startGame() {
+        document.getElementById('startMenu').style.display = 'none';
+        document.getElementById('gameContainer').style.display = 'block';
+        gameStarted = true;
+        loop();
+    }
+
+    function shareOnTwitter() {
+        const tweetUrl = `https://twitter.com/intent/tweet?text=I scored ${score} points in Alien Escape! Can you beat my score?`;
+        window.open(tweetUrl, '_blank');
+    }
+
+    function shareOnFacebook() {
+        const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`;
+        window.open(fbUrl, '_blank');
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.code === 'Space' && !gameOver) {
+            alien.jump();
+        }
+    });
+
+    canvas.addEventListener('click', function() {
+        if (!gameOver) {
+            alien.jump();
+        }
+    });
+
+    canvas.addEventListener('touchstart', function() {
+        if (!gameOver) {
+            alien.jump();
+        }
+    });
+</script>
+</body>
+</html>
